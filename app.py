@@ -37,25 +37,16 @@ def analisar_review_bert(review_texto):
     estrelas = int(resultado['label'].split()[0])
     return "Qualidade premium validada." if estrelas >= 4 else "Design e custo-benefício."
 
-def gerar_post_publicitario(nome_produto, contexto, palavras_chave):
-    prompt = f"Product: {nome_produto}. Style: {palavras_chave}. Review: {contexto}. Marketing ad:"
-    inputs = tokenizer(prompt, return_tensors="pt", max_length=100, truncation=True).to(device)
+def gerar_post_publicitario(nome_produto, contexto_sentimento, palavras_chave):
+    # A IA apenas nos ajuda a escolher um adjetivo baseado no sentimento
+    tom = "incrível" if "premium" in contexto_sentimento else "perfeito para você"
     
-    with torch.no_grad():
-        outputs = modelo_gerador.generate(
-            **inputs, 
-            max_new_tokens=40, 
-            do_sample=True, 
-            temperature=0.7, 
-            top_k=50,
-            no_repeat_ngram_size=2
-        )
-    
-    copy = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    # Filtra apenas o conteúdo gerado após o prompt
-    final_copy = copy.split("Marketing ad:")[-1].strip()
-    return f"✨ Viva a experiência {nome_produto}! {final_copy.capitalize()}. 🚀 Garanta a sua agora!"
-
+    # Montagem profissional (100% livre de alucinações)
+    return (
+        f"✨ Transforme sua rotina com a {nome_produto}! "
+        f"Com destaque para {palavras_chave}, este produto oferece uma experiência {tom}. "
+        f"🚀 Não perca a oportunidade de elevar o seu nível. Garanta a sua agora!"
+    )
 # 4. Interface Segura
 if 'keywords' not in st.session_state: st.session_state['keywords'] = ""
 if 'review' not in st.session_state: st.session_state['review'] = ""

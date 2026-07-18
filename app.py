@@ -79,9 +79,8 @@ def gerar_post_publicitario(nome_produto, contexto_sentimento, palavras_chave):
         f"#Estilo #Inovacao #Experiencia #Lifestyle"
     )
     return postagem_final
-
 # ==========================================
-# 4. INTERFACE DE USUÁRIO INTELIGENTE
+# 4. INTERFACE DE USUÁRIO (FRONTEND)
 # ==========================================
 col1, col2 = st.columns(2)
 
@@ -89,7 +88,7 @@ with col1:
     st.markdown("### 📥 Entrada de Dados")
     imagem_carregada = st.file_uploader("1. Faça o upload da imagem", type=["jpg", "jpeg", "png"])
     
-    # Inicializa campos no session_state para poderem ser alterados pela IA
+    # Inicializa campos no session_state para permitir preenchimento pela IA
     if 'keywords' not in st.session_state: st.session_state.keywords = ""
     if 'review' not in st.session_state: st.session_state.review = ""
 
@@ -102,15 +101,32 @@ with col1:
         if imagem_carregada:
             imagem = Image.open(imagem_carregada).convert("RGB")
             detccao = analisar_imagem(imagem)
-            
             # IA sugere conteúdo baseado na detecção visual
             st.session_state.keywords = f"pessoas usando {detccao} com estilo, conforto e durabilidade"
             st.session_state.review = f"Este {detccao} superou todas as expectativas de qualidade."
-            st.rerun() # Atualiza a tela para preencher os campos
+            st.rerun() 
         else:
             st.warning("Suba uma imagem para a IA sugerir os textos!")
 
     botao_gerar = st.button("🚀 Gerar Campanha de Marketing", use_container_width=True)
 
 with col2:
-    # (Mantenha o código de exibição do resultado igual ao original)
+    st.markdown("### 📤 Resultado Gerado")
+    if botao_gerar:
+        if imagem_carregada is None:
+            st.warning("Por favor, faça o upload de uma imagem primeiro.")
+        else:
+            imagem = Image.open(imagem_carregada).convert("RGB")
+            st.image(imagem, caption="Imagem Analisada", use_column_width=True)
+            
+            with st.spinner("Analisando imagem e processando redes neurais..."):
+                resultado_visao = analisar_imagem(imagem)
+                resultado_texto = analisar_review_bert(review_cliente)
+                postagem_final = gerar_post_publicitario(nome_produto, resultado_texto, palavras_chave)
+            
+            st.success("Análise Multimodal Concluída!")
+            st.markdown(f"**👁️ Detecção Visual (EfficientNet):** `{resultado_visao}`")
+            st.markdown(f"**📊 Análise de Sentimento (BERT):** `{resultado_texto}`")
+            st.markdown("---")
+            st.markdown("📱 **COPYWRITING GERADO (Flan-T5):**")
+            st.info(postagem_final)

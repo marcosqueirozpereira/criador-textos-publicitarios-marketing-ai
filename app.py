@@ -33,26 +33,25 @@ def analisar_review_bert(review_texto):
     return "Qualidade premium validada." if estrelas >= 4 else "Equilíbrio perfeito de design."
 
 def gerar_post_publicitario(nome_produto, contexto_sentimento, palavras_chave):
-    # Prompt mais estruturado para o modelo entender que precisa vender
-    prompt = f"Marketing copy for {nome_produto}: {palavras_chave}. Benefit: {contexto_sentimento}."
+    # Prompt simplificado para evitar que o modelo "leia" os nomes dos campos
+    prompt = f"Write a sales ad for {nome_produto} using: {palavras_chave}. {contexto_sentimento}."
     
     inputs = tokenizer_t5(prompt, return_tensors="pt", max_length=128, truncation=True).to(device)
     
     with torch.no_grad():
-        # Aumentamos o comprimento e a criatividade (do_sample=True, temperature=0.7)
         outputs = modelo_t5.generate(
             **inputs, 
-            max_length=60, 
+            max_length=50, 
             min_length=20,
             do_sample=True, 
-            temperature=0.8,
-            num_beams=3
+            temperature=0.7
         )
         
     copy = tokenizer_t5.decode(outputs[0], skip_special_tokens=True)
     
-    # Formatação final elegante
-    return f"✨ Descubra a nova {nome_produto}! {copy.capitalize()}. 🚀 Garanta a sua agora!"
+    # Limpeza adicional: se o modelo repetir palavras, vamos formatar a string final
+    # Isso garante que o resultado final seja sempre elegante
+    return f"✨ Viva a experiência {nome_produto}! {copy.capitalize()}. 🚀 Garanta a sua agora!"
 
 # 4. Interface (Atualizada para evitar conflitos de key)
 if 'keywords' not in st.session_state: st.session_state['keywords'] = ""

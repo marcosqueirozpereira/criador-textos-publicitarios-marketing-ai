@@ -1,24 +1,29 @@
 import streamlit as st
 import torch
-from transformers import AutoImageProcessor, EfficientNetForImageClassification, pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoImageProcessor, EfficientNetForImageClassification, pipeline, AutoModelForCausalLM, AutoTokenizer
 from PIL import Image
 
 # 1. Configuração da Página
-st.set_page_config(page_title="Painel de Marketing Automático", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Painel de Marketing", page_icon="🚀", layout="wide")
 st.title("🎯 Painel de Marketing Automatizado - Case 6")
 
-# 2. Carregamento com Cache
+# 2. Carregamento Otimizado
 @st.cache_resource
 def carregar_modelos():
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Visão
     processor_visao = AutoImageProcessor.from_pretrained("google/efficientnet-b0")
     modelo_visao = EfficientNetForImageClassification.from_pretrained("google/efficientnet-b0").to(device)
+    # Sentimento
     pipeline_bert = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment", device=0 if device == "cuda" else -1)
-    tokenizer_t5 = AutoTokenizer.from_pretrained("google/flan-t5-small")
-    modelo_t5 = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small").to(device)
-    return processor_visao, modelo_visao, pipeline_bert, tokenizer_t5, modelo_t5, device
+    # Geração (DistilGPT-2)
+    tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
+    tokenizer.pad_token = tokenizer.eos_token # Necessário para o GPT-2
+    modelo_gerador = AutoModelForCausalLM.from_pretrained("distilgpt2").to(device)
+    
+    return processor_visao, modelo_visao, pipeline_bert, tokenizer, modelo_gerador, device
 
-processor_visao, modelo_visao, pipeline_bert, tokenizer_t5, modelo_t5, device = carregar_modelos()
+processor_visao, modelo_visao, pipeline_bert, tokenizer, modelo_gerador, device = carregar_modelos()
 
 # 3. Funções de IA
 def analisar_imagem(imagem):
@@ -30,30 +35,28 @@ def analisar_imagem(imagem):
 def analisar_review_bert(review_texto):
     resultado = pipeline_bert(review_texto)[0]
     estrelas = int(resultado['label'].split()[0])
-    return "Qualidade premium validada." if estrelas >= 4 else "Equilíbrio perfeito de design."
+    return "Qualidade premium validada." if estrelas >= 4 else "Design e custo-benefício."
 
-def gerar_post_publicitario(nome_produto, contexto_sentimento, palavras_chave):
-    # O segredo: o prompt foca APENAS no benefício, sem forçar o modelo a repetir o nome do produto
-    prompt = f"Benefit of: {palavras_chave}. {contexto_sentimento}."
-    
-    inputs = tokenizer_t5(prompt, return_tensors="pt", max_length=128, truncation=True).to(device)
+def gerar_post_publicitario(nome_produto, contexto, palavras_chave):
+    prompt = f"Product: {nome_produto}. Style: {palavras_chave}. Review: {contexto}. Marketing ad:"
+    inputs = tokenizer(prompt, return_tensors="pt", max_length=100, truncation=True).to(device)
     
     with torch.no_grad():
-        outputs = modelo_t5.generate(
+        outputs = modelo_gerador.generate(
             **inputs, 
-            max_length=40, 
-            min_length=10,
+            max_new_tokens=40, 
             do_sample=True, 
-            temperature=0.6,
-            no_repeat_ngram_size=2 # Isso proíbe o modelo de repetir palavras seguidas
+            temperature=0.7, 
+            top_k=50,
+            no_repeat_ngram_size=2
         )
-        
-    copy = tokenizer_t5.decode(outputs[0], skip_special_tokens=True)
     
-    # Montamos o texto final manualmente. Isso blinda o seu app contra frases sem nexo.
-    return f"✨ A nova {nome_produto} chegou! {copy.capitalize()}. 🚀 Garanta a sua agora!"
+    copy = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # Filtra apenas o conteúdo gerado após o prompt
+    final_copy = copy.split("Marketing ad:")[-1].strip()
+    return f"✨ Viva a experiência {nome_produto}! {final_copy.capitalize()}. 🚀 Garanta a sua agora!"
 
-# 4. Interface (Atualizada para evitar conflitos de key)
+# 4. Interface Segura
 if 'keywords' not in st.session_state: st.session_state['keywords'] = ""
 if 'review' not in st.session_state: st.session_state['review'] = ""
 
@@ -62,8 +65,6 @@ col1, col2 = st.columns(2)
 with col1:
     imagem_carregada = st.file_uploader("1. Suba a imagem", type=["jpg", "png"])
     nome_produto = st.text_input("2. Nome do produto", value="Produto")
-    
-    # REMOVIDO o parâmetro 'key', usando 'value' vinculado ao session_state
     palavras_chave = st.text_input("3. Keywords", value=st.session_state['keywords'])
     review_cliente = st.text_area("4. Avaliação", value=st.session_state['review'])
     
@@ -71,12 +72,9 @@ with col1:
         if imagem_carregada:
             img = Image.open(imagem_carregada).convert("RGB")
             detccao = analisar_imagem(img)
-            # Atualiza o estado
-            st.session_state['keywords'] = f"uso de {detccao} com estilo"
-            st.session_state['review'] = f"Este {detccao} é excelente!"
-            st.rerun() # O rerun fará o Streamlit recarregar com os novos valores no 'value'
-        else:
-            st.warning("Suba uma imagem primeiro!")
+            st.session_state['keywords'] = f"uso de {detccao} com estilo moderno"
+            st.session_state['review'] = f"Este {detccao} é excelente e muito resistente."
+            st.rerun()
 
     botao_gerar = st.button("🚀 Gerar Campanha")
 
@@ -84,8 +82,6 @@ with col2:
     if botao_gerar and imagem_carregada:
         img = Image.open(imagem_carregada).convert("RGB")
         st.image(img, use_column_width=True)
-        # Usa os valores atuais que estão na caixa de texto
-        res_vis = analisar_imagem(img)
         res_tex = analisar_review_bert(review_cliente)
         post = gerar_post_publicitario(nome_produto, res_tex, palavras_chave)
         st.info(f"Copy: {post}")

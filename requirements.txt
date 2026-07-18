@@ -5,5 +5,5 @@ streamlit==1.32.0
 torch
 torchvision
 transformers
-Pillow
 sentencepiece
+--only-binary :all: Pillow

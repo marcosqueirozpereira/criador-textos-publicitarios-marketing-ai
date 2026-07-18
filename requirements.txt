@@ -1,0 +1,5 @@
+Plaintext
+streamlit==1.32.0
+torch
+transformers
+Pillow

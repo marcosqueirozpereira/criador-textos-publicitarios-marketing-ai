@@ -1,9 +1,7 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-setuptools>=77.0.0
-wheel
-streamlit==1.32.0
+streamlit
 torch
 torchvision
 transformers
+Pillow
 sentencepiece
---only-binary :all: Pillow
+numpy<2.0.0

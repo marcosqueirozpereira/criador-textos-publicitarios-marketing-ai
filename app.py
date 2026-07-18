@@ -39,7 +39,7 @@ def gerar_post_publicitario(nome_produto, contexto_sentimento, palavras_chave):
         outputs = modelo_t5.generate(**inputs, max_length=30)
     return tokenizer_t5.decode(outputs[0], skip_special_tokens=True)
 
-# 4. Interface (Com inicialização segura do session_state)
+# 4. Interface (Atualizada para evitar conflitos de key)
 if 'keywords' not in st.session_state: st.session_state['keywords'] = ""
 if 'review' not in st.session_state: st.session_state['review'] = ""
 
@@ -48,16 +48,21 @@ col1, col2 = st.columns(2)
 with col1:
     imagem_carregada = st.file_uploader("1. Suba a imagem", type=["jpg", "png"])
     nome_produto = st.text_input("2. Nome do produto", value="Produto")
-    palavras_chave = st.text_input("3. Keywords", key='keywords')
-    review_cliente = st.text_area("4. Avaliação", key='review')
+    
+    # REMOVIDO o parâmetro 'key', usando 'value' vinculado ao session_state
+    palavras_chave = st.text_input("3. Keywords", value=st.session_state['keywords'])
+    review_cliente = st.text_area("4. Avaliação", value=st.session_state['review'])
     
     if st.button("✨ Sugerir com IA"):
         if imagem_carregada:
             img = Image.open(imagem_carregada).convert("RGB")
             detccao = analisar_imagem(img)
+            # Atualiza o estado
             st.session_state['keywords'] = f"uso de {detccao} com estilo"
             st.session_state['review'] = f"Este {detccao} é excelente!"
-            st.rerun()
+            st.rerun() # O rerun fará o Streamlit recarregar com os novos valores no 'value'
+        else:
+            st.warning("Suba uma imagem primeiro!")
 
     botao_gerar = st.button("🚀 Gerar Campanha")
 
@@ -65,7 +70,8 @@ with col2:
     if botao_gerar and imagem_carregada:
         img = Image.open(imagem_carregada).convert("RGB")
         st.image(img, use_column_width=True)
+        # Usa os valores atuais que estão na caixa de texto
         res_vis = analisar_imagem(img)
-        res_tex = analisar_review_bert(st.session_state['review'])
-        post = gerar_post_publicitario(nome_produto, res_tex, st.session_state['keywords'])
+        res_tex = analisar_review_bert(review_cliente)
+        post = gerar_post_publicitario(nome_produto, res_tex, palavras_chave)
         st.info(f"Copy: {post}")

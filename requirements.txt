@@ -3,5 +3,4 @@ torch
 torchvision
 transformers
 Pillow
-sentencepiece
 numpy<2.0.0
